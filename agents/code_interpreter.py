@@ -45,7 +45,14 @@ class CodeInterpreterAgent(BaseAgent):
             for filename, filepath in files.items():
                 try:
                     df = pd.read_csv(filepath)
+                    # Store with original filename
                     self.dataframes[filename] = df
+                    
+                    # Also store with safe variable name
+                    safe_name = filename.replace('.csv', '').replace('-', '_').replace(' ', '_')
+                    if safe_name != filename:
+                        self.dataframes[safe_name] = df
+                    
                     context[f"df_{filename}"] = {
                         "shape": df.shape,
                         "columns": df.columns.tolist(),
@@ -125,36 +132,47 @@ User Query: {query}
 
 """
         if self.dataframes:
-            prompt += "Available DataFrames:\n"
+            prompt += "Available DataFrames (ALREADY LOADED IN MEMORY):\n"
             for name, df in self.dataframes.items():
-                prompt += f"\n{name}:\n"
+                prompt += f"\nVariable name: {name}\n"
                 prompt += f"  Shape: {df.shape}\n"
                 prompt += f"  Columns: {df.columns.tolist()}\n"
                 prompt += f"  Data types:\n"
                 for col, dtype in df.dtypes.items():
                     prompt += f"    {col}: {dtype}\n"
-                prompt += f"\nFirst few rows:\n{df.head()}\n"
+                prompt += f"\nFirst few rows:\n{df.head().to_string()}\n"
 
         if context:
             prompt += f"\nContext from previous analysis:\n{context}\n"
 
         prompt += """
-Instructions:
-1. Provide a clear analysis of what needs to be done
-2. Write clean, executable Python code
-3. Use pandas, numpy for data analysis
-4. Include comments in your code
-5. Wrap code in ```python blocks
-6. Focus on statistical analysis, data cleaning, and insights
-7. Store results in variables that can be accessed later
-8. Don't create visualizations - that will be handled by another agent
+CRITICAL INSTRUCTIONS:
+1. The DataFrames are ALREADY LOADED in memory - DO NOT use pd.read_csv()
+2. Use the exact variable names shown above (e.g., if the DataFrame is named 'sales_data.csv', use that variable directly)
+3. Write clean, executable Python code
+4. Use pandas (pd) and numpy (np) for data analysis
+5. Include comments explaining your code
+6. Wrap ALL code in ```python blocks
+7. Focus on statistical analysis, data cleaning, and insights
+8. Print your results so they can be displayed to the user
+9. Don't create visualizations - that will be handled by another agent
 
-Example:
+Example (if DataFrame variable is 'data.csv'):
 ```python
+# Access the already-loaded DataFrame
+df = data.csv  # Use the actual variable name shown above
+
 # Calculate summary statistics
 summary = df.describe()
+print("Summary Statistics:")
 print(summary)
+
+# Calculate totals
+total_sales = df['sales'].sum()
+print(f"\\nTotal Sales: ${total_sales:,.2f}")
 ```
+
+REMEMBER: DO NOT use pd.read_csv() - the data is already loaded with the variable names shown above!
 
 Provide your analysis and code:
 """
@@ -180,10 +198,20 @@ Provide your analysis and code:
         return code_blocks
 
     def _execute_code(self, code: str) -> Dict[str, Any]:
+        # Create execution environment with loaded dataframes
+        # Make dataframe names safe for Python variable names
+        safe_dataframes = {}
+        for name, df in self.dataframes.items():
+            # Create a safe variable name from the filename
+            safe_name = name.replace('.csv', '').replace('-', '_').replace(' ', '_')
+            safe_dataframes[safe_name] = df
+            # Also keep original name for backward compatibility
+            safe_dataframes[name] = df
+        
         exec_globals = {
             "pd": pd,
             "np": np,
-            **{name: df for name, df in self.dataframes.items()},
+            **safe_dataframes,
         }
 
         stdout_capture = io.StringIO()
@@ -205,11 +233,12 @@ Provide your analysis and code:
             result["output"] = stdout_capture.getvalue()
 
             for key, value in exec_globals.items():
-                if not key.startswith("_") and key not in ["pd", "np"]:
+                if not key.startswith("_") and key not in ["pd", "np"] and key not in self.dataframes:
                     if isinstance(value, (int, float, str, bool, list, dict)):
                         result["variables"][key] = value
                     elif isinstance(value, pd.DataFrame):
                         result["variables"][key] = f"DataFrame{value.shape}"
+                        # Store new dataframes
                         self.dataframes[key] = value
                     elif isinstance(value, np.ndarray):
                         result["variables"][key] = f"Array{value.shape}"

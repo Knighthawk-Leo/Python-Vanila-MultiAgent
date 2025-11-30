@@ -1,6 +1,4 @@
-"""
-Multi-Agent Chat Code Interpreter - FastAPI Backend
-"""
+
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,39 +13,32 @@ from datetime import datetime
 
 from agents.orchestrator import AgentOrchestrator
 
-# Initialize FastAPI app
 app = FastAPI(
-    title="Multi-Agent Code Interpreter",
-    description="A multi-agent system for data analysis, visualization, and presentation generation",
+    title="Vanilar Agent",
+    description="A agent system for data analysis, visualization, and presentation generation",
     version="1.0.0",
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Get API key from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY environment variable not set")
 
-# Initialize orchestrator
 orchestrator = AgentOrchestrator(api_key=GEMINI_API_KEY)
 
-# Create uploads directory
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-# Session storage (in production, use Redis or a database)
 sessions: Dict[str, Dict[str, Any]] = {}
 
 
-# Pydantic models
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
@@ -65,10 +56,8 @@ class AgentInfo(BaseModel):
     capabilities: List[str]
 
 
-# Routes
 @app.get("/")
 async def root():
-    """Root endpoint with API information"""
     return {
         "name": "Multi-Agent Code Interpreter API",
         "version": "1.0.0",
@@ -79,7 +68,6 @@ async def root():
 
 @app.get("/agents", response_model=List[AgentInfo])
 async def list_agents():
-    """List all available agents and their capabilities"""
     agents_info = []
     for name, capabilities in orchestrator.list_agents().items():
         agents_info.append(AgentInfo(name=name, capabilities=capabilities))
@@ -92,7 +80,6 @@ async def chat(request: ChatRequest):
     Chat endpoint - process natural language queries
     """
     try:
-        # Get or create session
         session_id = request.session_id or str(uuid.uuid4())
 
         if session_id not in sessions:
@@ -103,18 +90,18 @@ async def chat(request: ChatRequest):
             }
 
         session = sessions[session_id]
+        print(session.get("uploaded_files"))
+        # print(session.get("context"))
+        print(session.get("history"))
 
-        # Process the message
         results = await orchestrator.chat(
             message=request.message, files=None, conversation_context=session["context"]
         )
 
-        # Update session context
         if results["success"] and results.get("agent_results"):
             for agent_name, agent_result in results["agent_results"].items():
                 session["context"][f"{agent_name.lower()}_data"] = agent_result["data"]
 
-        # Add to history
         session["history"].append(
             {
                 "timestamp": datetime.now().isoformat(),
@@ -140,11 +127,8 @@ async def upload_file(
     message: Optional[str] = Form(None),
     session_id: Optional[str] = Form(None),
 ):
-    """
-    Upload CSV file and optionally process with a message
-    """
+    
     try:
-        # Validate file type
         if not file.filename.endswith(".csv"):
             raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
@@ -161,17 +145,14 @@ async def upload_file(
 
         session = sessions[session_id]
 
-        # Save uploaded file
         file_id = str(uuid.uuid4())
         file_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Store file info in session
         session["uploaded_files"][file.filename] = str(file_path)
 
-        # If message provided, process it with the file
         if message:
             results = await orchestrator.chat(
                 message=message,
@@ -179,14 +160,12 @@ async def upload_file(
                 conversation_context=session["context"],
             )
 
-            # Update session context
             if results["success"] and results.get("agent_results"):
                 for agent_name, agent_result in results["agent_results"].items():
                     session["context"][f"{agent_name.lower()}_data"] = agent_result[
                         "data"
                     ]
 
-            # Add to history
             session["history"].append(
                 {
                     "timestamp": datetime.now().isoformat(),
@@ -205,7 +184,6 @@ async def upload_file(
                 "timestamp": datetime.now().isoformat(),
             }
         else:
-            # Just upload, no processing
             return {
                 "success": True,
                 "session_id": session_id,
@@ -221,22 +199,17 @@ async def upload_file(
 
 @app.post("/analyze")
 async def analyze_data(file: UploadFile = File(...), query: str = Form(...)):
-    """
-    Analyze uploaded CSV file with a specific query
-    """
+    
     try:
-        # Validate file
         if not file.filename.endswith(".csv"):
             raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
-        # Save file temporarily
         file_id = str(uuid.uuid4())
         file_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Process with orchestrator
         results = await orchestrator.process_query(
             query=query, files={file.filename: str(file_path)}
         )
@@ -255,7 +228,6 @@ async def analyze_data(file: UploadFile = File(...), query: str = Form(...)):
 
 @app.get("/session/{session_id}")
 async def get_session(session_id: str):
-    """Get session information"""
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -264,11 +236,9 @@ async def get_session(session_id: str):
 
 @app.delete("/session/{session_id}")
 async def delete_session(session_id: str):
-    """Delete a session and clear its context"""
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Clean up uploaded files
     session = sessions[session_id]
     if "uploaded_files" in session:
         for filename, filepath in session["uploaded_files"].items():
@@ -284,8 +254,6 @@ async def delete_session(session_id: str):
 
 @app.post("/clear")
 async def clear_all():
-    """Clear all sessions and orchestrator context"""
-    # Clean up all uploaded files
     for session in sessions.values():
         if "uploaded_files" in session:
             for filename, filepath in session["uploaded_files"].items():
@@ -302,7 +270,6 @@ async def clear_all():
 
 @app.get("/history")
 async def get_history():
-    """Get execution history"""
     return {"history": orchestrator.get_execution_history()}
 
 

@@ -196,13 +196,7 @@
         }
 
         .agent-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            background: #667eea;
-            color: white;
-            border-radius: 12px;
-            font-size: 0.75em;
-            margin-right: 5px;
+            display: none; /* Hide agent badges - user doesn't need to see the process */
         }
 
         .input-area {
@@ -289,19 +283,47 @@
             line-height: 1.6;
         }
 
-        .markdown-content h1,
-        .markdown-content h2,
+        .markdown-content h1 {
+            font-size: 1.8em;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            color: #2c3e50;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .markdown-content h2 {
+            font-size: 1.5em;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            color: #34495e;
+        }
+
         .markdown-content h3,
         .markdown-content h4 {
             margin-top: 15px;
             margin-bottom: 10px;
-            color: #333;
+            color: #555;
         }
 
         .markdown-content ul,
         .markdown-content ol {
             margin-left: 20px;
             margin-bottom: 10px;
+            line-height: 1.8;
+        }
+
+        .markdown-content li {
+            margin-bottom: 6px;
+        }
+
+        .markdown-content strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .markdown-content p {
+            margin-bottom: 12px;
         }
 
         .markdown-content code {
@@ -319,10 +341,44 @@
         }
 
         .markdown-content blockquote {
-            border-left: 3px solid #667eea;
+            border-left: 4px solid #667eea;
             padding-left: 15px;
-            margin: 10px 0;
+            margin: 15px 0;
             color: #666;
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 4px;
+        }
+
+        .markdown-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 15px 0;
+        }
+
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .markdown-content th,
+        .markdown-content td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .markdown-content th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .markdown-content tr:nth-child(even) {
+            background: #f8f9fa;
         }
 
         @media (max-width: 768px) {
@@ -519,23 +575,16 @@
             
             let content = '';
             
-            // Show execution flow
-            if (result.execution_flow) {
-                const agents = result.execution_flow.map(step => step.agent).join(' → ');
-                content += `<div style="margin-bottom: 10px;">`;
-                result.execution_flow.forEach(step => {
-                    content += `<span class="agent-badge">${step.agent}</span>`;
-                });
-                content += `</div>`;
-            }
-            
-            // Show results from each agent
+            // Only show results from AnswerSynthesiser and Visualizations
+            // Hide all intermediate processing details
             if (result.agent_results) {
+                let hasAnswer = false;
+                
                 for (const [agentName, agentResult] of Object.entries(result.agent_results)) {
                     if (agentResult.data) {
                         // Answer Synthesiser results (Final Answer - show this prominently)
                         if (agentName === 'AnswerSynthesiser') {
-                            content += `<h4>💡 Answer</h4>`;
+                            hasAnswer = true;
                             const answerData = agentResult.data;
                             
                             if (typeof answerData === 'string') {
@@ -548,34 +597,25 @@
                             }
                         }
                         
-                        // Code Interpreter results
-                        if (agentName === 'CodeInterpreter' && agentResult.data.analysis) {
-                            content += `<h4>📊 Analysis</h4>`;
-                            content += `<p>${agentResult.data.analysis}</p>`;
-                            
-                            if (agentResult.data.results) {
-                                for (const execResult of agentResult.data.results) {
-                                    if (execResult.output) {
-                                        content += `<pre>${execResult.output}</pre>`;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Visualization results
+                        // Visualization results - show images without code
                         if (agentName === 'VisualizationAgent' && agentResult.data.visualizations) {
-                            content += `<h4>📈 Visualizations</h4>`;
                             for (const viz of agentResult.data.visualizations) {
                                 if (viz.image_base64) {
-                                    content += `<img src="data:image/png;base64,${viz.image_base64}" alt="Visualization">`;
+                                    content += `<img src="data:image/png;base64,${viz.image_base64}" alt="Visualization" style="margin: 15px 0;">`;
                                 }
                             }
                         }
-                        
-                        // Presentation results
-                        if (agentName === 'PresentationAgent' && agentResult.data.presentation) {
-                            content += `<h4>📑 Report</h4>`;
-                            content += `<div>${agentResult.data.presentation.content}</div>`;
+                    }
+                }
+                
+                // If no AnswerSynthesiser result, show a fallback message
+                if (!hasAnswer && result.agent_results['CodeInterpreter']) {
+                    const ciData = result.agent_results['CodeInterpreter'].data;
+                    if (ciData.results) {
+                        for (const execResult of ciData.results) {
+                            if (execResult.output) {
+                                content += `<div class="markdown-content">${execResult.output}</div>`;
+                            }
                         }
                     }
                 }
@@ -609,7 +649,7 @@
 
         // Initialize
         loadAgents();
-        addMessage('assistant', '👋 Hello! Upload a CSV file or ask me anything about data analysis.');
+        addMessage('assistant', '👋 Hello! I\'m your AI assistant. Upload a CSV file to analyze your data, or ask me any question!');
     </script>
 </body>
 </html>

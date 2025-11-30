@@ -46,18 +46,18 @@ class AnswerSynthesiserAgent(BaseAgent):
         has_presentation = context.get("presentationagent_data") is not None
         
         if has_code_results or has_viz or has_presentation:
-            prompt = f"""You are an answer synthesizer agent. Your role is to create a clear, comprehensive response to the user's query based on the analysis performed by other agents.
+            prompt = f"""You are an AI assistant providing clear, user-friendly answers. Based on the analysis that was performed, create a comprehensive response to the user's query.
 
 User Query: {query}
 
 """
             if has_code_results:
                 ci_data = context.get("codeinterpreter_data", {})
-                prompt += "\n### Code Analysis Results:\n"
+                prompt += "\n### Data Analysis Results:\n"
                 if ci_data.get("analysis"):
                     prompt += f"{ci_data['analysis']}\n\n"
                 if ci_data.get("results"):
-                    prompt += "Execution Output:\n"
+                    prompt += "Findings:\n"
                     for result in ci_data["results"]:
                         if result.get("output"):
                             prompt += f"{result['output']}\n"
@@ -66,7 +66,7 @@ User Query: {query}
                 viz_data = context.get("visualizationagent_data", {})
                 viz_count = viz_data.get("visualization_count", 0)
                 if viz_count > 0:
-                    prompt += f"\n### Visualizations:\n{viz_count} visualizations were created.\n"
+                    prompt += f"\n### Visual Analysis:\n{viz_count} chart(s) have been created to illustrate the findings.\n"
             
             if has_presentation:
                 pres_data = context.get("presentationagent_data", {})
@@ -75,14 +75,31 @@ User Query: {query}
             
             prompt += """
 Instructions:
-1. Synthesize a clear, concise answer to the user's query
-2. Use markdown formatting for better readability
-3. Include key findings, insights, and statistics
-4. Structure your response with proper headings and bullet points
-5. If there are numerical results, present them clearly
-6. Be conversational but professional
+1. Provide a clear, direct answer to the user's question
+2. Present findings as insights, not raw code or technical details
+3. Use markdown formatting with headings, bullet points, and emphasis
+4. Include key statistics and numbers prominently
+5. If visualizations were created, mention them naturally (e.g., "As shown in the chart above...")
+6. Be conversational, friendly, and easy to understand
+7. DO NOT mention code, execution, or technical processes
+8. Focus on WHAT was found, not HOW it was found
+9. Structure as: Summary → Key Findings → Insights → (if applicable) Recommendations
 
-Provide your synthesized answer in markdown format:
+Example good response:
+"Based on the analysis of your sales data, here are the key findings:
+
+## Summary
+Total revenue across all regions is $1.5M, with strong growth in Q3.
+
+## Key Findings
+- **North region** leads with $650K (43% of total)
+- **Product A** is the top performer at $800K
+- Sales increased by 25% compared to last quarter
+
+## Insights
+The data shows a clear trend toward premium products, with higher-priced items driving growth."
+
+Provide your answer in markdown format:
 """
         else:
             prompt = f"""You are a helpful AI assistant. Answer the user's question clearly and comprehensively.
