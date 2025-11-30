@@ -1,0 +1,41 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment variables
+.env
+.env.local
+
+# Uploads
+uploads/
+*.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+plot.png
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
