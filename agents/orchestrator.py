@@ -41,6 +41,7 @@ class AgentOrchestrator:
         query: str,
         files: Optional[Dict[str, str]] = None,
         start_agent: str = "CodeInterpreter",
+        session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         
         if files is None:
@@ -52,6 +53,7 @@ class AgentOrchestrator:
             "query": query,
             "context": self.current_context.copy(),
             "files": files,
+            "session_id": session_id or "default",
         }
 
         results = {
@@ -134,13 +136,13 @@ class AgentOrchestrator:
         message: str,
         files: Optional[Dict[str, str]] = None,
         conversation_context: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         start_agent = self._determine_start_agent(message, files)
-        print(start_agent)
         if conversation_context:
             self.current_context.update(conversation_context)
 
-        results = await self.process_query(message, files, start_agent)
+        results = await self.process_query(message, files, start_agent, session_id)
 
         return results
 

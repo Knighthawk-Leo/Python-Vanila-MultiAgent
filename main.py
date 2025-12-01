@@ -2,7 +2,8 @@
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import os
@@ -35,6 +36,13 @@ orchestrator = AgentOrchestrator(api_key=GEMINI_API_KEY)
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Create visualizations directory
+VIZ_DIR = Path("visualizations")
+VIZ_DIR.mkdir(exist_ok=True)
+
+# Mount static files for visualizations
+app.mount("/visualizations", StaticFiles(directory="visualizations"), name="visualizations")
 
 sessions: Dict[str, Dict[str, Any]] = {}
 
@@ -156,6 +164,7 @@ async def upload_file(
                 message=message,
                 files={file.filename: str(file_path)},
                 conversation_context=session["context"],
+                session_id=session_id
             )
 
             if results["success"] and results.get("agent_results"):
@@ -208,8 +217,13 @@ async def analyze_data(file: UploadFile = File(...), query: str = Form(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
+        # Generate a session ID for this analysis
+        temp_session_id = str(uuid.uuid4())
+        
         results = await orchestrator.process_query(
-            query=query, files={file.filename: str(file_path)}
+            query=query, 
+            files={file.filename: str(file_path)},
+            session_id=temp_session_id
         )
 
         return {
