@@ -41,7 +41,7 @@ class VisualizationAgent(BaseAgent):
     async def process(self, input_data: Dict[str, Any]) -> AgentResult:
         query = input_data.get("query", "")
         context = input_data.get("context", {})
-
+        
         prompt = self._build_prompt(query, context)
 
         try:
@@ -51,6 +51,7 @@ class VisualizationAgent(BaseAgent):
             code_blocks = self._extract_code_blocks(response_text)
 
             if not code_blocks:
+                print("NO CODE BLOCKS FOUND")
                 return AgentResult(
                     success=True,
                     data={"analysis": response_text, "visualizations": []},
@@ -62,9 +63,10 @@ class VisualizationAgent(BaseAgent):
             visualizations = []
             for code in code_blocks:
                 viz_result = self._create_visualization(code, context)
+                print(viz_result)
                 if viz_result["success"]:
                     visualizations.append(viz_result)
-
+            print(visualizations,"////////////////////////////////////////////////////")
             return AgentResult(
                 success=True,
                 data={
@@ -162,8 +164,8 @@ Provide your visualization code:
             "np": np,
         }
 
-        if "dataframes" in context:
-            for name, data in context["dataframes"].items():
+        if "dataframes" in context.get("codeinterpreter_data", {}):
+            for name, data in context.get("codeinterpreter_data", {}).get("dataframes", {}).items():
                 if isinstance(data, dict):
                     exec_globals[name] = pd.DataFrame(data)
                 else:

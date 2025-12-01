@@ -90,12 +90,10 @@ async def chat(request: ChatRequest):
             }
 
         session = sessions[session_id]
-        print(session.get("uploaded_files"))
-        # print(session.get("context"))
-        print(session.get("history"))
-
+        
+        files = session.get("uploaded_files", None)
         results = await orchestrator.chat(
-            message=request.message, files=None, conversation_context=session["context"]
+            message=request.message, files=files, conversation_context=session["context"]
         )
 
         if results["success"] and results.get("agent_results"):

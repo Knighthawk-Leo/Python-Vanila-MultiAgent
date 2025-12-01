@@ -40,17 +40,26 @@ class AnswerSynthesiserAgent(BaseAgent):
         ]
 
     def _build_prompt(self, query: str, context: Dict[str, Any]) -> str:
-        
+        print(context.keys())
         has_code_results = context.get("codeinterpreter_data") is not None
         has_viz = context.get("visualizationagent_data") is not None
         has_presentation = context.get("presentationagent_data") is not None
-        
-        if has_code_results or has_viz or has_presentation:
+        answersynthesiser_data = context.get("answersynthesiser_data") 
+        if answersynthesiser_data:
+            print("////////////////////////////////////////////////////")
+            print(answersynthesiser_data.get("answer"))
+            print("////////////////////////////////////////////////////")
+            print(answersynthesiser_data)
+            print("////////////////////////////////////////////////////")
+        if has_code_results or has_viz or has_presentation or answersynthesiser_data:
+            
             prompt = f"""You are an AI assistant providing clear, user-friendly answers. Based on the analysis that was performed, create a comprehensive response to the user's query.
 
 User Query: {query}
 
 """
+            if answersynthesiser_data:
+                prompt += f"\n### Previous Answer Synthesiser Results:\n{answersynthesiser_data.get('answer')}\n"
             if has_code_results:
                 ci_data = context.get("codeinterpreter_data", {})
                 prompt += "\n### Data Analysis Results:\n"

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Agent Code Interpreter</title>
+    <title>Vanilar Agent</title>
     <style>
         * {
             margin: 0;
@@ -451,8 +451,8 @@
                         }
                         
                         if (agentName === 'CodeInterpreter' && agentResult.data.analysis) {
-                            content += `<h4>📊 Analysis</h4>`;
-                            content += `<p>${agentResult.data.analysis}</p>`;
+                            // content += `<h4>📊 Analysis</h4>`;
+                            // content += `<p>${agentResult.data.analysis}</p>`;
                             
                             if (agentResult.data.results) {
                                 for (const execResult of agentResult.data.results) {

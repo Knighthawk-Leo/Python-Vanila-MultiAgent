@@ -136,6 +136,7 @@ class AgentOrchestrator:
         conversation_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         start_agent = self._determine_start_agent(message, files)
+        print(start_agent)
         if conversation_context:
             self.current_context.update(conversation_context)
 
